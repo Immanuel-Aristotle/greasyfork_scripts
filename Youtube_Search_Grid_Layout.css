@@ -5,6 +5,7 @@
 @description    Show youtube search results in a grid layout
 @author         cicero.elead.apollonius@gmail.com
 @license        GPL
+@match        https://www.youtube.com/?search_query=*
 ==/UserStyle== */
 
 @-moz-document regexp("^https://www\\.youtube\\.com/results\\?search_query=.*$")

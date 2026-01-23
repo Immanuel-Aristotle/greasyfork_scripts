@@ -2,7 +2,7 @@
 // @name         YouTube Jump to Time or Percentage
 // @namespace    http://tampermonkey.net/
 // @version      1.0
-// @description  Jump to a specific timestamp (e.g. 01:23) or percentage (e.g. 50%) in YouTube videos via hotkey Option+J (Alt+J on Windows/Linux).
+// @description  Jump to a specific timestamp (e.g. 01:23) or percentage (e.g. 50%) in YouTube videos via hotkey Command+J (Windows+J on Windows/Linux).
 // @author       cicero.elead.apollonius@gmail.com
 // @match        https://www.youtube.com/watch*
 // @license      GPL

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         YouTube Jump to Time or Percentage
-// @namespace    http://tampermonkey.net/
+// @namespace    youtube-tools
 // @version      1.1
 // @description  Jump to a specific timestamp (e.g. 01:23, 00:26:45,600) or percentage (e.g. 50%) via Command+J.
 // @author       cicero.elead.apollonius@gmail.com

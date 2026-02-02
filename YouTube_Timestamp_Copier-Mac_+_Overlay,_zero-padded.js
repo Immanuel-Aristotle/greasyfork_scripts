@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         YouTube Timestamp Copier (Mac + Overlay, zero-padded)
-// @namespace    http://tampermonkey.net/
+// @namespace    youtube-tools
 // @version      1.3
 // @description  Copy YouTube timestamp like 02:37 using ⌘ + Shift + C and show overlay on video player on macOS.
 // @author       cicero.elead.apollonius@gmail.com

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         YouTube Save Frame with More Identifiable Filename (Shift + Option + G)
-// @namespace    http://tampermonkey.net/
+// @namespace    youtube-tools
 // @version      1.2
 // @description  Save current YouTube frame with title + timestamp filename. Supports Unicode (e.g. Chinese). Hotkey: Shift + Option + F. Also adds a button to player controls.
 // @author       cicero.elead.apollonius@gmail.com

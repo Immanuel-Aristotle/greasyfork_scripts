@@ -4,7 +4,7 @@
 // @version      0.2.0
 // @description  Copy PrairieLearn content as markdown (with LaTeX math supported). Hotkey: shift + cmd + C
 // @match        https://us.prairielearn.com/*
-// @match        https://canvas.illinois.edu/*
+// @match        https://canvas.*.edu/*
 // @grant        GM_setClipboard
 // @run-at       document-idle
 // @author       cicero.elead.apollonius@gmail.com

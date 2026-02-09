@@ -2,8 +2,9 @@
 // @name         Copy PrairieLearn content as markdown (shift + cmd + C)
 // @namespace    prairie-tools
 // @version      0.2.0
-// @description  Copy PrairieLearn content as markdown. Hotkey: shift + cmd + C. The script supports copy math as markdown & copy multiple-choice questions as checkboxes.
+// @description  Copy PrairieLearn content as markdown (with LaTeX math supported). Hotkey: shift + cmd + C
 // @match        https://us.prairielearn.com/*
+// @match        https://canvas.illinois.edu/*
 // @grant        GM_setClipboard
 // @run-at       document-idle
 // @author       cicero.elead.apollonius@gmail.com

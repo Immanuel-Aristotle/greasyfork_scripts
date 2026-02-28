@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         cs128.org - Copy selection as Markdown (Shift+Cmd+C)
 // @namespace    https://tampermonkey.net/
-// @version      0.1.1
+// @version      0.1.3
 // @description  Convert selected content on cs128.org to Markdown and copy to clipboard.
 // @match        https://cs128.org/*
 // @grant        GM_setClipboard
@@ -140,6 +140,55 @@
     return map[ext] || null;
   }
 
+  // ---------- Table helpers (NEW) ----------
+  function escapeTableCell(text) {
+    return text.replace(/\|/g, "\\|").replace(/\n+/g, "<br>");
+  }
+
+  function tableCellToMarkdown(cell, ctx) {
+    const tableCtx = { ...(ctx || {}), inTable: true };
+
+    const pre = cell.querySelector && cell.querySelector("pre");
+    if (pre) {
+      const t = normalizeSpaces(pre.textContent || "");
+      return escapeTableCell(t);
+    }
+
+    const raw = childrenToMarkdown(cell, tableCtx);
+    const t = normalizeSpaces(raw);
+    return escapeTableCell(t);
+  }
+
+  function tableToMarkdown(tableEl, ctx) {
+    const rows = Array.from(tableEl.querySelectorAll("tr"));
+    if (rows.length === 0) return "";
+
+    const matrix = rows.map((tr) => {
+      const cells = Array.from(tr.children).filter((c) => {
+        const tag = c.tagName?.toLowerCase();
+        return tag === "td" || tag === "th";
+      });
+      return cells.map((cell) => tableCellToMarkdown(cell, ctx));
+    });
+
+    const colCount = Math.max(...matrix.map((r) => r.length), 0);
+    if (colCount === 0) return "";
+
+    for (const r of matrix) {
+      while (r.length < colCount) r.push("");
+    }
+
+    const header = matrix[0];
+    const body = matrix.slice(1);
+
+    const headerLine = `| ${header.join(" | ")} |`;
+    const sepLine = `| ${Array(colCount).fill("---").join(" | ")} |`;
+    const bodyLines = body.map((r) => `| ${r.join(" | ")} |`);
+
+    return [headerLine, sepLine, ...bodyLines].join("\n");
+  }
+  // ---------- end table helpers ----------
+
   // --- HTML -> Markdown ---
   function nodeToMarkdown(node, ctx) {
     ctx = ctx || { listStack: [] }; // listStack: [{type:'ul'|'ol', index:number}]
@@ -160,11 +209,22 @@
     if (node.getAttribute && node.getAttribute("aria-hidden") === "true")
       return "";
 
+    // Tables (NEW)
+    if (tag === "table") {
+      return `\n${tableToMarkdown(node, ctx)}\n`;
+    }
+
     if (tag === "pre") {
       const codeEl = node.querySelector("code");
       const lang =
         codeEl?.className?.match(/language-([a-z0-9_+-]+)/i)?.[1] || "";
       const text = (codeEl ? codeEl.textContent : node.textContent) || "";
+
+      // If we are inside a table, avoid fenced blocks.
+      if (ctx && ctx.inTable) {
+        return normalizeSpaces(text);
+      }
+
       return `\n\`\`\`${lang}\n${text.replace(/\s+$/g, "")}\n\`\`\`\n`;
     }
 
@@ -180,11 +240,40 @@
       return `${ticks}${text}${ticks}`;
     }
 
+    if (tag === "img") {
+      let src = node.getAttribute("src") || "";
+      if (!src) return "";
+
+      try {
+        src = new URL(src, document.baseURI).toString();
+      } catch (_) {}
+
+      let alt = normalizeSpaces(node.getAttribute("alt") || "");
+
+      if (!alt) {
+        try {
+          const urlObj = new URL(src);
+          let filename = urlObj.pathname.split("/").pop() || "";
+          filename = filename.replace(/\.[^.]+$/, "");
+          filename = decodeURIComponent(filename);
+          alt = filename;
+        } catch (_) {}
+      }
+
+      return `![${alt}](${src})`;
+    }
+
     if (tag === "a") {
       const href = node.getAttribute("href") || "";
       const text = normalizeSpaces(node.textContent || "");
       if (!href || /^javascript:/i.test(href)) return text;
-      return `[${text || href}](${href})`;
+
+      let abs = href;
+      try {
+        abs = new URL(href, document.baseURI).toString();
+      } catch (_) {}
+
+      return `[${text || abs}](${abs})`;
     }
 
     if (/^h[1-6]$/.test(tag)) {
@@ -211,7 +300,6 @@
       return inner ? `**${inner}**` : "";
     }
 
-    // ---- FIXED: Nested list handling ----
     if (tag === "ul" || tag === "ol") {
       const nextStack = ctx.listStack.slice();
       if (tag === "ol") nextStack.push({ type: "ol", index: 1 });
@@ -219,12 +307,9 @@
 
       const inner = childrenToMarkdown(node, { ...ctx, listStack: nextStack });
 
-      // 如果已经在列表内部，不要额外加空行
       if ((ctx.listStack || []).length > 0) {
         return inner || "";
       }
-
-      // 只有顶层列表才前后加空行
       return inner ? `\n${inner}\n` : "";
     }
 
@@ -232,7 +317,6 @@
       const stack = ctx.listStack || [];
       const depth = Math.max(0, stack.length - 1);
 
-      // 每级固定 2 空格
       const spaces = "  ";
       const indent = spaces.repeat(depth);
 
@@ -245,7 +329,6 @@
         currentList.index += 1;
       }
 
-      // 子内容统一再 +2 空格
       const childIndent = indent + spaces;
 
       let inline = "";
@@ -264,7 +347,6 @@
 
       inline = normalizeSpaces(inline);
 
-      // 处理 li 内部换行（对齐到子缩进）
       if (inline.includes("\n")) {
         inline = inline
           .split("\n")
@@ -306,7 +388,6 @@
 
     let md = childrenToMarkdown(container, { listStack: [] });
 
-    // 不要用 normalizeSpaces，它会破坏缩进
     md = normalizeMarkdown(md);
 
     return md;

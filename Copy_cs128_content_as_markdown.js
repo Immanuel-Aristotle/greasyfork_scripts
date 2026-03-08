@@ -6,6 +6,8 @@
 // @match        https://cs128.org/*
 // @grant        GM_setClipboard
 // @run-at       document-idle
+// @author       cicero.elead.apollonius@gmail.com
+// @license      GPL
 // ==/UserScript==
 
 (function () {

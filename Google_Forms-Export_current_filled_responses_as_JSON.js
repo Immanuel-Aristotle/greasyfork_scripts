@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Google Forms - Export current filled responses as JSON
 // @namespace    google-productivity
-// @version      1.0.0
+// @version      1.0.1
 // @description  Export the current Google Form page responses to a JSON file
 // @match        https://docs.google.com/forms/*
 // @grant        none
@@ -80,6 +80,27 @@
 
   function getFormTitle() {
     return safeText($('[role="heading"][aria-level="1"]')) || document.title;
+  }
+
+  function getFormDescription() {
+    const form = getForm();
+    if (!form) return "";
+
+    const titleEl = form.querySelector('[role="heading"][aria-level="1"]');
+    if (!titleEl) return "";
+
+    let node = titleEl.parentElement;
+    while (node && node !== form) {
+      const desc = node.parentElement?.querySelector(".cBGGJ.OIC90c");
+      if (desc) return safeText(desc);
+      node = node.parentElement;
+    }
+
+    const fallback =
+      form.querySelector(".N0gd6 .cBGGJ.OIC90c") ||
+      form.querySelector(".cBGGJ.OIC90c");
+
+    return safeText(fallback);
   }
 
   function getQuestionTitle(block) {
@@ -221,6 +242,7 @@
       }
 
       const title = getFormTitle();
+      const description = getFormDescription();
       const metadata = collectMetadata(form);
       const hiddenEntries = collectHiddenEntries(form);
       const questions = buildQuestionObjects(form);
@@ -230,6 +252,7 @@
         url: location.href,
         form: {
           title,
+          description,
           action: form.action || null,
           method: form.method || null,
           id: form.id || null,

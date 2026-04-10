@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FlightAware - Copy Tracklog as Clean GPX (Cmd+Shift+C)
 // @namespace    https://tampermonkey.net/
-// @version      0.3.0
+// @version      0.4.0
 // @description  Copy FlightAware tracklog table as a clean GPX 1.1 track. Extra table fields go into per-point <extensions>.
 // @match        https://www.flightaware.com/*
 // @grant        GM_setClipboard
@@ -91,41 +91,77 @@
     return x.charAt(0).toUpperCase() + x.slice(1);
   }
 
-  function normalizeTime12(t) {
+  function normalizeTimeString(t) {
     const s = String(t).trim().toUpperCase().replace(/\s+/g, " ");
+
+    // 12-hour without seconds: 07:24 PM -> 07:24:00 PM
     if (/^\d{1,2}:\d{2}\s[AP]M$/.test(s)) {
-      return s.replace(/^(\d{1,2}:\d{2}) /, "$1:00 ");
+      return s.replace(/^(\d{1,2}:\d{2})\s([AP]M)$/, "$1:00 $2");
     }
+
+    // 24-hour without seconds: 20:36 -> 20:36:00
+    if (/^\d{1,2}:\d{2}$/.test(s)) {
+      return `${s}:00`;
+    }
+
     return s;
   }
 
   function parseDisplayedTime(cell) {
     const t = extractPrimaryVisibleText(cell);
-    const m = t.match(/\b(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\b\s+(\d{1,2}:\d{2}(?::\d{2})?\s*[AP]M)\b/i);
+
+    // 支持：
+    // Mon 07:24:52 PM
+    // Mon 07:24 PM
+    // Tue 20:36:43
+    // Tue 20:36
+    const m = t.match(
+      /\b(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\b\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\b/i
+    );
     if (!m) return null;
+
     return {
       raw: t,
       weekdayAbbr: capitalize3(m[1]),
-      time12: normalizeTime12(m[2]),
+      timeStr: normalizeTimeString(m[2]),
     };
   }
 
-  function parseTime12To24(time12) {
-    const m = String(time12).match(/^(\d{1,2}):(\d{2}):(\d{2})\s([AP]M)$/);
-    if (!m) return null;
+  function parseTimeTo24(timeStr) {
+    const s = String(timeStr).trim().toUpperCase();
 
-    let hh = Number(m[1]);
-    const mm = Number(m[2]);
-    const ss = Number(m[3]);
-    const ampm = m[4];
+    // 12-hour: HH:MM:SS AM/PM
+    let m = s.match(/^(\d{1,2}):(\d{2}):(\d{2})\s([AP]M)$/);
+    if (m) {
+      let hh = Number(m[1]);
+      const mm = Number(m[2]);
+      const ss = Number(m[3]);
+      const ampm = m[4];
 
-    if (ampm === "AM") {
-      if (hh === 12) hh = 0;
-    } else {
-      if (hh !== 12) hh += 12;
+      if (ampm === "AM") {
+        if (hh === 12) hh = 0;
+      } else {
+        if (hh !== 12) hh += 12;
+      }
+
+      return { hh, mm, ss };
     }
 
-    return { hh, mm, ss };
+    // 24-hour: HH:MM:SS
+    m = s.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+    if (m) {
+      const hh = Number(m[1]);
+      const mm = Number(m[2]);
+      const ss = Number(m[3]);
+
+      if (hh < 0 || hh > 23 || mm < 0 || mm > 59 || ss < 0 || ss > 59) {
+        return null;
+      }
+
+      return { hh, mm, ss };
+    }
+
+    return null;
   }
 
   function parseYmd(ymd) {
@@ -158,8 +194,8 @@
     return null;
   }
 
-  function combineLocalDateTimeAndOffset(ymd, time12, tzAbbr) {
-    const t24 = parseTime12To24(time12);
+  function combineLocalDateTimeAndOffset(ymd, timeStr, tzAbbr) {
+    const t24 = parseTimeTo24(timeStr);
     if (!t24) return null;
     const offset = TZ_ABBR_TO_OFFSET[tzAbbr] || "+00:00";
     return `${ymd}T${pad2(t24.hh)}:${pad2(t24.mm)}:${pad2(t24.ss)}${offset}`;
@@ -262,7 +298,7 @@
 
       const isoTime = combineLocalDateTimeAndOffset(
         lastResolvedDate,
-        displayed.time12,
+        displayed.timeStr,
         headerTz
       );
 
@@ -286,7 +322,7 @@
         timestampMs: isoTime ? toEpochMs(isoTime) : null,
 
         displayedWeekday: displayed.weekdayAbbr,
-        displayedTime: displayed.time12,
+        displayedTime: displayed.timeStr,
         headerTz,
 
         courseRaw: course.raw,
